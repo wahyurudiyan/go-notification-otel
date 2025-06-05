@@ -26,7 +26,6 @@ This project demonstrates how to propagate trace context across services using [
 ├── pkg/
 │ ├── graceful/ # Graceful shutdown helper
 │ └── telemetry/ # OpenTelemetry setup
-├── telemetry/ # Tracing configuration
 ├── go.mod
 ├── go.sum
 ├── README.md
