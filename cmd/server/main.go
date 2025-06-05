@@ -12,7 +12,7 @@ import (
 	"github.com/wahyurudiyan/go-otel-context-propagation/cmd/server/notification"
 	"github.com/wahyurudiyan/go-otel-context-propagation/contract/notificationpb"
 	"github.com/wahyurudiyan/go-otel-context-propagation/pkg/graceful"
-	"github.com/wahyurudiyan/go-otel-context-propagation/telemetry"
+	"github.com/wahyurudiyan/go-otel-context-propagation/pkg/telemetry"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/sdk/resource"

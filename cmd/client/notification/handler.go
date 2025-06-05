@@ -5,7 +5,7 @@ import (
 	"strconv"
 
 	"github.com/wahyurudiyan/go-otel-context-propagation/contract/notificationpb"
-	"github.com/wahyurudiyan/go-otel-context-propagation/telemetry"
+	"github.com/wahyurudiyan/go-otel-context-propagation/pkg/telemetry"
 	"go.uber.org/zap"
 )
 
