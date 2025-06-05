@@ -5,7 +5,6 @@ import (
 	"errors"
 	"net"
 	"sync"
-	"time"
 
 	"github.com/gofiber/contrib/otelfiber/v2"
 	"github.com/gofiber/fiber/v2"
@@ -58,11 +57,9 @@ func bootstrapServer(ctx context.Context) graceful.ShutdownCallback {
 	httpServer := startHTTPServer()
 	grpcServer := startGRPCServer()
 	return func(ctx context.Context) error {
-		chanErr := make(chan error)
-		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(30*time.Second))
-		defer cancel()
-
 		var wg sync.WaitGroup
+		chanErr := make(chan error)
+
 		go func(ctx context.Context) {
 			wg.Add(1)
 			defer wg.Done()
