@@ -1,4 +1,4 @@
-module github.com/wahyurudiyan/go-notification-otel
+module github.com/wahyurudiyan/go-otel-context-propagation
 
 go 1.23.1
 

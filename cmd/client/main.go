@@ -5,14 +5,17 @@ import (
 	"errors"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"github.com/gofiber/contrib/otelfiber/v2"
 	"github.com/gofiber/fiber/v2"
-	"github.com/wahyurudiyan/go-notification-otel/cmd/client/notification"
-	"github.com/wahyurudiyan/go-notification-otel/contract/notificationpb"
-	"github.com/wahyurudiyan/go-notification-otel/telemetry"
+	"github.com/wahyurudiyan/go-otel-context-propagation/cmd/client/notification"
+	"github.com/wahyurudiyan/go-otel-context-propagation/contract/notificationpb"
+	"github.com/wahyurudiyan/go-otel-context-propagation/pkg/graceful"
+	"github.com/wahyurudiyan/go-otel-context-propagation/telemetry"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/sdk/resource"
+	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -28,8 +31,6 @@ func init() {
 }
 
 func main() {
-	var logger = zap.L()
-
 	// initialize graceful shutdown
 	ctx := context.Background()
 	ctx, stop := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGKILL, syscall.SIGQUIT)
@@ -37,39 +38,61 @@ func main() {
 
 	shutdown, err := telemetry.SetupOTelSDK(ctx, "http.server")
 	if err != nil {
-		logger.Fatal("unable to setup OTelSDK", zap.Error(err))
+		zap.L().Fatal("unable to setup OTelSDK", zap.Error(err))
 	}
 
 	defer func() {
 		err = errors.Join(err, shutdown(context.Background()))
 	}()
 
-	httpMux := fiber.New()
-	httpMux.Use(otelfiber.Middleware())
+	if err := graceful.Runner(ctx, bootstrap); err != nil {
+		zap.L().Fatal("Server cannot shutdown gracefully", zap.Error(err))
+	}
+}
 
+func bootstrap(ctx context.Context) graceful.ShutdownCallback {
+	httpServer := startHTTPServer()
+	return func(ctx context.Context) error {
+		if err := httpServer.ShutdownWithContext(ctx); err != nil {
+			return err
+		}
+		return nil
+	}
+}
+
+func startHTTPServer() *fiber.App {
+	mux := fiber.New()
+	mux.Use(otelfiber.Middleware(otelfiber.WithCustomAttributes(
+		func(ctx *fiber.Ctx) []attribute.KeyValue {
+			r := resource.NewSchemaless(
+				semconv.ServiceName("notification:server"),
+			)
+			return r.Attributes()
+		},
+	)))
 	conn, err := grpc.NewClient(
 		NotificationGRPCHost,
 		grpc.WithStatsHandler(otelgrpc.NewClientHandler()),
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
 	if err != nil {
-		logger.Fatal("cannot listen to gRPC server", zap.String("server.host", NotificationGRPCHost), zap.Error(err))
+		zap.L().Fatal("Cannot listen to gRPC server", zap.String("server.host", NotificationGRPCHost), zap.Error(err))
 	}
 	grpcNotificationClient := notificationpb.NewNotificationServiceClient(conn)
 
 	notificationHandler := notification.NewNotificationHandler(grpcNotificationClient)
-	httpMux.Post("/notifications/push", func(c *fiber.Ctx) error {
+	mux.Post("/notifications/push", func(c *fiber.Ctx) error {
 		ctx, span := telemetry.StartSpan(c.UserContext(), "controller:PushNotification")
 		defer span.End()
 
 		var req notification.PushNotificationRequest
 		if err := c.BodyParser(&req); err != nil {
-			logger.Error("unable to unmarshal body", zap.ByteString("body", c.BodyRaw()), zap.Error(err))
+			zap.L().Error("Cannot unmarshal body", zap.ByteString("body", c.BodyRaw()), zap.Error(err))
 			return err
 		}
 
 		if err := notificationHandler.SendPushNotification(ctx, req); err != nil {
-			logger.Error("unable to send notification", zap.Error(err))
+			zap.L().Error("Unable to send notification", zap.Error(err))
 			return err
 		}
 
@@ -78,20 +101,10 @@ func main() {
 
 	// run http server
 	go func() {
-		if err := httpMux.Listen(":8080"); err != nil {
-			logger.Fatal("unable to run http server", zap.Error(err))
+		if err := mux.Listen(":8081"); err != nil {
+			zap.L().Fatal("Cannot run http server", zap.Error(err))
 		}
 	}()
 
-	<-ctx.Done()
-
-	timeoutCtx, cancel := context.WithTimeout(context.Background(), time.Duration(30*time.Second))
-	defer cancel()
-
-	if err := httpMux.ShutdownWithContext(timeoutCtx); err != nil {
-		logger.Fatal("http server cannot shutdown gracefully", zap.Error(err))
-	}
-
-	time.Sleep(time.Duration(10 * time.Second))
-	logger.Info("http service shutting down gracefully")
+	return mux
 }
