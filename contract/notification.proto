@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package notification;
+
+// Menentukan opsi untuk penggunaan gRPC.
+option go_package = "./notificationpb";
+option java_package = "com.example.notification";
+option java_multiple_files = true;
+
+// Message untuk permintaan push notifikasi
+message PushNotificationRequest {
+  string user_id = 1;            // ID pengguna yang akan menerima notifikasi
+  string title = 2;              // Judul notifikasi
+  string body = 3;               // Isi notifikasi
+  map<string, string> data = 4;  // Data tambahan opsional (misalnya deep links, type, dsb.)
+}
+
+// Message untuk respons push notifikasi
+message PushNotificationResponse {
+  bool success = 1;              // Status pengiriman
+  string message = 2;            // Pesan status (error atau info tambahan)
+}
+
+// Service untuk mengirim push notification
+service NotificationService {
+  rpc SendPushNotification(PushNotificationRequest) returns (PushNotificationResponse);
+}
