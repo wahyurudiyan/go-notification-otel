@@ -1,10 +1,25 @@
 ###
-POST http://localhost:8080/notifications/push HTTP/1.1
+POST http://localhost:8081/client/notifications/push HTTP/1.1
 Content-Type: application/json
 
 {
     "user_id": 123,
+    "device_id": "XCZOA1B099",
     "title": "claim your promo",
+    "body": "get promo for this month!",
+    "data": {
+        "content": "this is content"
+    }
+}
+
+###
+POST http://localhost:8081/client/notifications/email HTTP/1.1
+Content-Type: application/json
+
+{
+    "user_id": 123,
+    "email": "wahyu@gmail.com",
+    "subject": "claim your promo",
     "body": "get promo for this month!",
     "data": {
         "content": "this is content"

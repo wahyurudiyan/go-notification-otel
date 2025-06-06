@@ -30,10 +30,10 @@ build-client: ## Build the client binary
 # =====================
 
 run-server: ## Run the server using go run
-	go run $(SRC_DIR)/server/main.go
+	go run $(SRC_DIR)/server/*.go
 
 run-client: ## Run the client using go run
-	go run $(SRC_DIR)/client/main.go
+	go run $(SRC_DIR)/client/*.go
 
 # =====================
 # UTILITY
